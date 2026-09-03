@@ -1,0 +1,42 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { Text, View, Pressable, StyleSheet } from 'react-native';
+
+export default function ChatScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+
+  return (
+    <View style={styles.container}>
+      <Pressable onPress={() => router.back()}>
+        <Text style={styles.back}>‹ Back</Text>
+      </Pressable>
+
+      <Text style={styles.title}>NChat</Text>
+      <Text style={styles.user}>Chat ID: {id || 'unknown'}</Text>
+      <Text style={styles.ready}>Chat screen working ✅</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 24,
+    paddingTop: 60,
+  },
+  back: {
+    fontSize: 18,
+    marginBottom: 40,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  user: {
+    fontSize: 18,
+    marginTop: 20,
+  },
+  ready: {
+    fontSize: 18,
+    marginTop: 30,
+  },
+});

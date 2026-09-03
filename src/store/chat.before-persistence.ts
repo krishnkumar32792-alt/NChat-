@@ -1,0 +1,205 @@
+import { create } from 'zustand';
+
+export type Message = {
+  id: string;
+  text: string;
+  sender: 'me' | 'other';
+  time: string;
+  replyTo?: {
+    id: string;
+    text: string;
+  };
+  reaction?: string;
+  edited?: boolean;
+  seen?: boolean;
+};
+
+type ChatState = {
+  messages: Record<string, Message[]>;
+  savedMessages: Record<string, string[]>;
+  unread: Record<string, number>;
+  typing: Record<string, boolean>;
+  sendMessage: (
+    userId: string,
+    text: string,
+    replyTo?: { id: string; text: string }
+  ) => void;
+  receiveMessage: (userId: string, text: string) => void;
+  markRead: (userId: string) => void;
+  getLastMessage: (userId: string) => Message | undefined;
+  deleteMessage: (userId: string, messageId: string) => void;
+  editMessage: (userId: string, messageId: string, text: string) => void;
+  markMessageSeen: (userId: string, messageId: string) => void;
+  setTyping: (userId: string, typing: boolean) => void;
+  toggleSaveMessage: (userId: string, messageId: string) => void;
+  setReaction: (userId: string, messageId: string, reaction: string) => void;
+  loadMessages: (userId: string) => Promise<void>;
+};
+
+export const useChatStore = create<ChatState>((set, get) => ({
+  messages: {
+    '1': [],
+    '2': [],
+    '3': [],
+  },
+
+  unread: {
+    '1': 0,
+    '2': 0,
+    '3': 0,
+  },
+
+  savedMessages: {
+    '1': [],
+    '2': [],
+    '3': [],
+  },
+
+  typing: {
+    '1': false,
+    '2': false,
+    '3': false,
+  },
+
+  sendMessage: (userId, text, replyTo) =>
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [userId]: [
+          ...(state.messages[userId] || []),
+          {
+            id: Date.now().toString(),
+            text,
+            sender: 'me',
+            time: new Date().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            ...(replyTo ? { replyTo } : {}),
+          },
+        ],
+      },
+    })),
+
+  receiveMessage: (userId, text) =>
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [userId]: [
+          ...(state.messages[userId] || []),
+          {
+            id: Date.now().toString(),
+            text,
+            sender: 'other',
+            time: new Date().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          },
+        ],
+      },
+      unread: {
+        ...state.unread,
+        [userId]: (state.unread[userId] || 0) + 1,
+      },
+    })),
+
+  markRead: (userId) =>
+    set((state) => ({
+      unread: {
+        ...state.unread,
+        [userId]: 0,
+      },
+    })),
+
+  getLastMessage: (userId) => {
+    const list = get().messages[userId] || [];
+    return list[list.length - 1];
+  },
+
+  deleteMessage: (userId, messageId) =>
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [userId]: (state.messages[userId] || []).filter(
+          (message) => message.id !== messageId
+        ),
+      },
+    })),
+
+  loadMessages: async (userId) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [userId]: state.messages[userId] || [],
+      },
+    }));
+  },
+
+  setReaction: (userId, messageId, reaction) =>
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [userId]: (state.messages[userId] || []).map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                reaction:
+                  message.reaction === reaction ? undefined : reaction,
+              }
+            : message
+        ),
+      },
+    })),
+
+  editMessage: (userId, messageId, text) =>
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [userId]: (state.messages[userId] || []).map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                text,
+                edited: true,
+              }
+            : message
+        ),
+      },
+    })),
+
+  markMessageSeen: (userId, messageId) =>
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [userId]: (state.messages[userId] || []).map((message) =>
+          message.id === messageId
+            ? { ...message, seen: true }
+            : message
+        ),
+      },
+    })),
+
+  setTyping: (userId, typing) =>
+    set((state) => ({
+      typing: {
+        ...state.typing,
+        [userId]: typing,
+      },
+    })),
+
+  toggleSaveMessage: (userId, messageId) =>
+    set((state) => {
+      const saved = state.savedMessages[userId] || [];
+      const exists = saved.includes(messageId);
+
+      return {
+        savedMessages: {
+          ...state.savedMessages,
+          [userId]: exists
+            ? saved.filter((id) => id !== messageId)
+            : [...saved, messageId],
+        },
+      };
+    }),
+}));
