@@ -1,65 +1,58 @@
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
 
-export default function CameraPreviewScreen() {
-  const { uri, filter } = useLocalSearchParams<{
+export default function CameraPreview() {
+  const params = useLocalSearchParams<{
     uri?: string;
     filter?: string;
   }>();
 
+  const uri = params.uri;
+  const filter = params.filter || 'Normal';
+
+  if (!uri) {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.emptyText}>Photo nahi mili</Text>
+        <Pressable style={styles.button} onPress={() => router.back()}>
+          <Text style={styles.buttonText}>Back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  function usePhoto() {
+    router.replace({
+      pathname: '/tabs/create',
+      params: {
+        image: uri,
+        filter,
+      },
+    });
+  }
+
   return (
     <View style={styles.container}>
-      {uri ? (
-        <Image
-          source={{ uri }}
-          style={styles.image}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={styles.noImage}>
-          <Text style={styles.noImageText}>No photo</Text>
+      <Image source={{ uri }} style={styles.image} />
+
+      <View style={styles.top}>
+        <Pressable onPress={() => router.back()}>
+          <Text style={styles.close}>✕</Text>
+        </Pressable>
+
+        <View style={styles.filterBox}>
+          <Text style={styles.filterText}>✨ {filter}</Text>
         </View>
-      )}
+      </View>
 
-      <View style={styles.overlay}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.close}>✕</Text>
-          </Pressable>
+      <View style={styles.bottom}>
+        <Pressable style={styles.retake} onPress={() => router.back()}>
+          <Text style={styles.retakeText}>↩ Retake</Text>
+        </Pressable>
 
-          <Text style={styles.filter}>
-            {filter || 'Normal'}
-          </Text>
-        </View>
-
-        <View style={styles.bottom}>
-          <Pressable
-            style={styles.button}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.buttonText}>Retake</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.button, styles.useButton]}
-            onPress={() => {
-              if (!uri) return;
-
-              router.replace({
-                pathname: '/tabs/create',
-                params: { image: uri },
-              });
-            }}
-          >
-            <Text style={styles.useText}>Use Photo</Text>
-          </Pressable>
-        </View>
+        <Pressable style={styles.useButton} onPress={usePhoto}>
+          <Text style={styles.useText}>✓ Use Photo</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -72,79 +65,94 @@ const styles = StyleSheet.create({
   },
 
   image: {
-    width: '100%',
-    height: '100%',
-  },
-
-  noImage: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  noImageText: {
-    color: '#fff',
-    fontSize: 18,
-  },
-
-  overlay: {
     ...StyleSheet.absoluteFill,
-    justifyContent: 'space-between',
+    resizeMode: 'cover',
   },
 
   top: {
-    marginTop: 48,
-    paddingHorizontal: 20,
+    position: 'absolute',
+    top: 55,
+    left: 20,
+    right: 20,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
 
   close: {
     color: '#fff',
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '700',
   },
 
-  filter: {
-    color: '#fff',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  filterBox: {
+    backgroundColor: 'rgba(0,0,0,0.55)',
     paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 18,
-    fontWeight: '800',
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+
+  filterText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 
   bottom: {
+    position: 'absolute',
+    bottom: 35,
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     gap: 12,
-    padding: 20,
-    paddingBottom: 35,
   },
 
-  button: {
+  retake: {
     flex: 1,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingVertical: 15,
+    borderRadius: 25,
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+
+  retakeText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 
   useButton: {
+    flex: 1,
+    backgroundColor: '#208AEF',
+    paddingVertical: 15,
+    borderRadius: 25,
+    alignItems: 'center',
+  },
+
+  useText: {
+    color: '#fff',
+    fontWeight: '800',
+  },
+
+  empty: {
+    flex: 1,
     backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  emptyText: {
+    fontSize: 18,
+    marginBottom: 15,
+  },
+
+  button: {
+    backgroundColor: '#208AEF',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 22,
   },
 
   buttonText: {
     color: '#fff',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-
-  useText: {
-    color: '#111',
-    fontWeight: '900',
-    fontSize: 16,
+    fontWeight: '700',
   },
 });
-

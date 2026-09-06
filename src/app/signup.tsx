@@ -10,19 +10,43 @@ import {
   ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useAuthStore } from '../store/auth';
 
 export default function SignupScreen() {
+  const signup = useAuthStore((state) => state.signup);
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSignup = () => {
-    if (!username || !email || !password) {
+  const handleSignup = async () => {
+    setError('');
+
+    if (!username.trim() || !email.trim() || !password) {
+      setError('All fields are required');
       return;
     }
 
-    // Real account creation backend next phase mein add hoga.
-    console.log('Signup attempted:', username);
+    if (username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+
+    if (password.length < 4) {
+      setError('Password must be at least 4 characters');
+      return;
+    }
+
+    const success = await signup(username, password);
+
+    if (!success) {
+      setError('Username already exists');
+      return;
+    }
+
+    router.replace('/tabs/feed');
   };
 
   return (
@@ -30,7 +54,10 @@ export default function SignupScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <Pressable onPress={() => router.back()}>
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
@@ -67,14 +94,25 @@ export default function SignupScreen() {
             autoCorrect={false}
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#888"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Password"
+              placeholderTextColor="#888"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <Pressable
+              style={styles.eyeButton}
+              onPress={() => setShowPassword((v) => !v)}
+              hitSlop={10}
+            >
+              <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+            </Pressable>
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Pressable
             style={({ pressed }) => [
@@ -94,10 +132,6 @@ export default function SignupScreen() {
             </Pressable>
           </View>
         </View>
-
-        <Text style={styles.footer}>
-          By creating an account, you agree to NChat's terms.
-        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -146,6 +180,33 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 22,
   },
+  passwordRow: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  passwordInput: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingRight: 52,
+    backgroundColor: '#fafafa',
+    color: '#111',
+    fontSize: 15,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    height: 52,
+    width: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyeText: {
+    fontSize: 19,
+  },
   input: {
     height: 52,
     borderWidth: 1,
@@ -156,6 +217,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
     color: '#111',
     fontSize: 15,
+  },
+  error: {
+    color: '#d00',
+    marginBottom: 10,
+    fontSize: 13,
   },
   signupButton: {
     height: 52,
@@ -183,11 +249,5 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     fontWeight: '800',
-  },
-  footer: {
-    textAlign: 'center',
-    color: '#888',
-    fontSize: 12,
-    marginTop: 22,
   },
 });

@@ -5,7 +5,7 @@ import { useProfileStore } from '@/store/profile';
 
 export default function ProfileScreen() {
   const posts = usePostStore((state) => state.posts);
-  const profile = useProfileStore();
+  const profile = useProfileStore((state) => state.profile);
 
   return (
     <View style={styles.container}>

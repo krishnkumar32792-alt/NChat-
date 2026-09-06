@@ -4,14 +4,16 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 const filters = [
-  { name: 'Normal', emoji: '✨', overlay: 'transparent' },
-  { name: 'Warm', emoji: '🔥', overlay: 'rgba(255,150,60,0.20)' },
-  { name: 'Cool', emoji: '❄️', overlay: 'rgba(70,160,255,0.20)' },
-  { name: 'Pink', emoji: '🌸', overlay: 'rgba(255,80,160,0.18)' },
-  { name: 'Purple', emoji: '💜', overlay: 'rgba(150,70,255,0.18)' },
-  { name: 'Sunset', emoji: '🌅', overlay: 'rgba(255,90,30,0.18)' },
-  { name: 'Dream', emoji: '🦋', overlay: 'rgba(100,220,210,0.14)' },
-  { name: 'Sparkle', emoji: '✨', overlay: 'rgba(255,255,255,0.13)' },
+  { name: 'Normal', emoji: '✨', overlay: 'transparent', effect: '' },
+  { name: 'Warm', emoji: '🌅', overlay: 'rgba(255,140,0,0.10)', effect: '' },
+  { name: 'Cool', emoji: '❄️', overlay: 'rgba(0,140,255,0.10)', effect: '' },
+  { name: 'Pink', emoji: '🌸', overlay: 'rgba(255,0,120,0.10)', effect: '💗' },
+  { name: 'Hearts', emoji: '❤️', overlay: 'transparent', effect: '♥  ♥  ♥' },
+  { name: 'Crown', emoji: '👑', overlay: 'transparent', effect: '👑' },
+  { name: 'Glasses', emoji: '😎', overlay: 'transparent', effect: '😎' },
+  { name: 'Dog', emoji: '🐶', overlay: 'rgba(120,70,20,0.06)', effect: '🐶  🐾' },
+  { name: 'Bunny', emoji: '🐰', overlay: 'rgba(255,180,220,0.06)', effect: '🐰' },
+  { name: 'Sparkle', emoji: '✨', overlay: 'transparent', effect: '✦  ✧  ✦' },
 ];
 
 export default function CameraScreen() {
@@ -53,7 +55,15 @@ export default function CameraScreen() {
   return (
     <View style={styles.container}>
       <CameraView ref={cameraRef} style={styles.camera} facing={facing} onCameraReady={() => setReady(true)} />
-      <View pointerEvents="none" style={[styles.filterOverlay, { backgroundColor: active.overlay }]} />
+      <View
+        pointerEvents="none"
+        style={[styles.filterOverlay, { backgroundColor: active.overlay }]}
+      />
+      {!!active.effect && (
+        <View pointerEvents="none" style={styles.effectOverlay}>
+          <Text style={styles.effectText}>{active.effect}</Text>
+        </View>
+      )}
 
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} style={styles.iconButton}><Text style={styles.topButton}>✕</Text></Pressable>
@@ -92,7 +102,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   black: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
-  filterOverlay: { ...StyleSheet.absoluteFillObject },
+  filterOverlay: { ...StyleSheet.absoluteFill },
+  effectOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 180,
+  },
+  effectText: {
+    fontSize: 52,
+    textAlign: 'center',
+    letterSpacing: 12,
+  },
   topBar: { position: 'absolute', top: 44, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   topButton: { color: '#fff', fontSize: 27, fontWeight: '800' },

@@ -9,13 +9,19 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useAuthStore } from '@/store/auth';
 import { useProfileStore } from '@/store/profile';
 
 export default function EditProfileScreen() {
-  const profile = useProfileStore();
-  const [username, setUsername] = useState(profile.username);
-  const [bio, setBio] = useState(profile.bio);
-  const [avatar, setAvatar] = useState(profile.avatar);
+  const profile = useProfileStore((state) => state.profile);
+  const setProfile = useProfileStore((state) => state.setProfile);
+  const authUsername = useAuthStore((state) => state.username);
+
+  const [username, setUsername] = useState(
+    profile.username || authUsername || ''
+  );
+  const [bio, setBio] = useState(profile.bio || '');
+  const [avatar, setAvatar] = useState(profile.avatar || '');
 
   async function chooseAvatar() {
     const permission =
@@ -40,11 +46,11 @@ export default function EditProfileScreen() {
 
     if (!cleanUsername) return;
 
-    profile.updateProfile(
-      cleanUsername,
-      bio.trim(),
-      avatar
-    );
+    setProfile({
+      username: cleanUsername,
+      bio: bio.trim(),
+      avatar,
+    });
 
     router.back();
   }
@@ -68,7 +74,9 @@ export default function EditProfileScreen() {
           <Image source={{ uri: avatar }} style={styles.avatar} />
         ) : (
           <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>X</Text>
+            <Text style={styles.avatarText}>
+              {(username || 'X').charAt(0).toUpperCase()}
+            </Text>
           </View>
         )}
 
@@ -81,8 +89,10 @@ export default function EditProfileScreen() {
         value={username}
         onChangeText={setUsername}
         placeholder="Username"
+        placeholderTextColor="#888"
         style={styles.input}
         autoCapitalize="none"
+        autoCorrect={false}
       />
 
       <Text style={styles.label}>Bio</Text>
@@ -91,9 +101,11 @@ export default function EditProfileScreen() {
         value={bio}
         onChangeText={setBio}
         placeholder="Write something about yourself..."
+        placeholderTextColor="#888"
         style={[styles.input, styles.bioInput]}
         multiline
         maxLength={150}
+        textAlignVertical="top"
       />
 
       <Text style={styles.counter}>{bio.length}/150</Text>
@@ -102,11 +114,7 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-
+  container: { flex: 1, backgroundColor: '#fff' },
   header: {
     height: 65,
     paddingHorizontal: 18,
@@ -116,32 +124,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-
-  title: {
-    fontSize: 19,
-    fontWeight: '900',
-  },
-
-  cancel: {
-    color: '#555',
-  },
-
-  save: {
-    fontWeight: '900',
-  },
-
+  title: { fontSize: 19, fontWeight: '900' },
+  cancel: { color: '#555' },
+  save: { fontWeight: '900' },
   avatarBox: {
     alignItems: 'center',
     marginTop: 30,
     marginBottom: 30,
   },
-
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-  },
-
+  avatar: { width: 110, height: 110, borderRadius: 55 },
   avatarPlaceholder: {
     width: 110,
     height: 110,
@@ -150,23 +141,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  avatarText: {
-    fontSize: 40,
-    fontWeight: '900',
-  },
-
-  changePhoto: {
-    marginTop: 10,
-    fontWeight: '800',
-  },
-
+  avatarText: { fontSize: 40, fontWeight: '900' },
+  changePhoto: { marginTop: 10, fontWeight: '800' },
   label: {
     fontWeight: '800',
     marginHorizontal: 20,
     marginBottom: 7,
   },
-
   input: {
     marginHorizontal: 20,
     height: 48,
@@ -175,14 +156,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     marginBottom: 20,
+    color: '#111',
   },
-
   bioInput: {
     height: 100,
     paddingTop: 12,
-    textAlignVertical: 'top',
   },
-
   counter: {
     textAlign: 'right',
     marginRight: 20,

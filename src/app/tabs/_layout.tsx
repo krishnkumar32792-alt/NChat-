@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { Text } from 'react-native';
 
 export default function TabsLayout() {
   return (
@@ -36,6 +37,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="nearby"
+        options={{
+          title: 'Nearby',
+          tabBarIcon: () => <Text>👥</Text>,
+        }}
+      />
+      <Tabs.Screen
         name="notifications"
         options={{
           title: 'Activity',
@@ -53,4 +61,3 @@ export default function TabsLayout() {
   );
 }
 
-import { Text } from 'react-native';

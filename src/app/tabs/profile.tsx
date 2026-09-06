@@ -1,99 +1,123 @@
+import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, Text, Pressable, View, Image } from 'react-native';
 import { usePostStore } from '@/store/posts';
 import { useProfileStore } from '@/store/profile';
+import { useAuthStore } from '@/store/auth';
 
 export default function ProfileScreen() {
+  const profile = useProfileStore((state) => state.profile);
   const posts = usePostStore((state) => state.posts);
-  const profile = useProfileStore();
+  const authUsername = useAuthStore((state) => state.username);
 
-  const myPosts = posts.filter((post) => post.username === profile.username);
+  const username = authUsername?.trim() || profile.username || 'Xyz';
+
+  const myPosts = posts.filter(
+    (post) => post.username.toLowerCase() === username.toLowerCase()
+  );
+
+  const savedCount = posts.filter((post) => post.saved).length;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.username}>@{profile.username}</Text>
+        <Text style={styles.username}>@{username}</Text>
 
-        <Pressable onPress={() => router.replace('/')}>
-          <Text style={styles.logout}>Log out</Text>
+        <Pressable
+          style={styles.settingsButton}
+          onPress={() => router.push('/settings')}
+        >
+          <Text style={styles.settingsIcon}>⚙️</Text>
         </Pressable>
       </View>
 
-      <View style={styles.profileRow}>
-        {profile.avatar ? (
-          <Image source={{ uri: profile.avatar }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatar}>
+      <View style={styles.profileTop}>
+        <View style={styles.avatar}>
+          {profile.avatar ? (
+            <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
+          ) : (
             <Text style={styles.avatarText}>
-              {profile.username.charAt(0).toUpperCase()}
+              {username.charAt(0).toUpperCase()}
             </Text>
-          </View>
-        )}
+          )}
+        </View>
 
         <View style={styles.stats}>
           <View style={styles.stat}>
-            <Text style={styles.number}>{myPosts.length}</Text>
-            <Text style={styles.label}>Posts</Text>
+            <Text style={styles.statNumber}>{myPosts.length}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
           </View>
 
           <View style={styles.stat}>
-            <Text style={styles.number}>0</Text>
-            <Text style={styles.label}>Followers</Text>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Followers</Text>
           </View>
 
           <View style={styles.stat}>
-            <Text style={styles.number}>0</Text>
-            <Text style={styles.label}>Following</Text>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Following</Text>
           </View>
         </View>
       </View>
 
-      <Text style={styles.name}>{profile.username}</Text>
-      <Text style={styles.bio}>{profile.bio}</Text>
-
-      <Pressable
-        style={styles.editButton}
-        onPress={() => router.push('/tabs/edit-profile')}
-      >
-        <Text style={styles.editText}>Edit Profile</Text>
-      </Pressable>
+      <View style={styles.bioBox}>
+        <Text style={styles.name}>{profile.name || username}</Text>
+        <Text style={styles.bio}>
+          {profile.bio || 'Hey! I am using NChat 👋'}
+        </Text>
+      </View>
 
       <View style={styles.actions}>
-        <Pressable style={styles.actionButton}>
-          <Text style={styles.actionText}>🔖 Saved</Text>
+        <Pressable
+          style={styles.editButton}
+          onPress={() => router.push('/edit-profile')}
+        >
+          <Text style={styles.editText}>Edit Profile</Text>
         </Pressable>
 
-        <Pressable style={styles.actionButton}>
-          <Text style={styles.actionText}>⚙️ Settings</Text>
+        <Pressable
+          style={styles.actionButton}
+          onPress={() => router.push('/saved')}
+        >
+          <Text style={styles.actionText}>🔖 Saved ({savedCount})</Text>
         </Pressable>
       </View>
 
       <View style={styles.divider} />
 
-      <Text style={styles.postsTitle}>My Posts</Text>
-
       {myPosts.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>📷</Text>
-          <Text style={styles.emptyTitle}>No posts yet</Text>
+          <Text style={styles.emptyTitle}>No Posts Yet</Text>
           <Text style={styles.emptyText}>
-            Share your first post from Create.
+            Create your first post and it will appear here.
           </Text>
+
+          <Pressable
+            style={styles.createButton}
+            onPress={() => router.push('/tabs/create')}
+          >
+            <Text style={styles.createText}>Create Post</Text>
+          </Pressable>
         </View>
       ) : (
-        <View style={styles.postGrid}>
-          {myPosts.map((post) => (
-            <Pressable key={post.id} style={styles.gridItem}>
-              <Image source={{ uri: post.image }} style={styles.gridImage} />
-            </Pressable>
-          ))}
-        </View>
+        <FlatList
+          data={myPosts}
+          numColumns={3}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.gridItem}>
+              <Image source={{ uri: item.image }} style={styles.gridImage} />
+            </View>
+          )}
+          contentContainerStyle={styles.grid}
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews
+          initialNumToRender={9}
+          maxToRenderPerBatch={9}
+          windowSize={5}
+        />
       )}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -102,13 +126,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  content: {
-    paddingBottom: 35,
-  },
   header: {
-    height: 65,
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    height: 60,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -116,132 +136,144 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   username: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#111',
-  },
-  logout: {
+    fontSize: 20,
     fontWeight: '700',
-    color: '#555',
   },
-  profileRow: {
+  settingsButton: {
+    padding: 6,
+  },
+  settingsIcon: {
+    fontSize: 22,
+  },
+  profileTop: {
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
   },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#eee',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: '#208AEF',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
-    fontSize: 35,
-    fontWeight: '900',
-    color: '#111',
+    color: '#fff',
+    fontSize: 34,
+    fontWeight: '800',
   },
   stats: {
     flex: 1,
+    marginLeft: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginLeft: 15,
   },
   stat: {
     alignItems: 'center',
   },
-  number: {
-    fontSize: 19,
-    fontWeight: '900',
-  },
-  label: {
-    color: '#666',
-    marginTop: 4,
-  },
-  name: {
+  statNumber: {
     fontSize: 18,
     fontWeight: '800',
-    paddingHorizontal: 20,
+  },
+  statLabel: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#777',
+  },
+  bioBox: {
+    paddingHorizontal: 18,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   bio: {
-    paddingHorizontal: 20,
     marginTop: 5,
     color: '#555',
-    lineHeight: 20,
+    fontSize: 14,
+  },
+  actions: {
+    padding: 18,
+    flexDirection: 'row',
+    gap: 8,
   },
   editButton: {
-    marginHorizontal: 20,
-    marginTop: 15,
+    flex: 1,
     height: 42,
-    borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
+    backgroundColor: '#208AEF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   editText: {
-    fontWeight: '800',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginHorizontal: 20,
-    marginTop: 12,
+    color: '#fff',
+    fontWeight: '700',
   },
   actionButton: {
     flex: 1,
     height: 42,
     borderRadius: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f2f2f2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionText: {
+    color: '#111',
     fontWeight: '700',
-    fontSize: 13,
   },
   divider: {
     height: 1,
     backgroundColor: '#eee',
-    marginTop: 20,
   },
-  postsTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    padding: 15,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingTop: 45,
-    paddingHorizontal: 20,
-  },
-  emptyIcon: {
-    fontSize: 35,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginTop: 10,
-  },
-  emptyText: {
-    color: '#777',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  postGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  grid: {
+    padding: 1,
   },
   gridItem: {
-    width: '33.33%',
-    height: 125,
-    borderWidth: 1,
-    borderColor: '#fff',
-    backgroundColor: '#eee',
+    width: '33.333%',
+    aspectRatio: 1,
+    padding: 1,
   },
   gridImage: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#eee',
+  },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 30,
+  },
+  emptyIcon: {
+    fontSize: 50,
+  },
+  emptyTitle: {
+    marginTop: 10,
+    fontSize: 21,
+    fontWeight: '800',
+  },
+  emptyText: {
+    marginTop: 6,
+    color: '#777',
+    textAlign: 'center',
+  },
+  createButton: {
+    marginTop: 18,
+    paddingHorizontal: 24,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: '#208AEF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });

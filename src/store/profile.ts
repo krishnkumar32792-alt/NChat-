@@ -1,21 +1,67 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
-type ProfileState = {
+export type Profile = {
   username: string;
+  name: string;
   bio: string;
-  avatar: string | null;
-  updateProfile: (username: string, bio: string, avatar: string | null) => void;
+  avatar: string;
+};
+
+type ProfileState = {
+  profile: Profile;
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
+  setProfile: (profile: Partial<Profile>) => void;
+  resetProfile: () => void;
+  resetProfile: () => void;
+};
+
+const KEY = '@nchat_profile';
+
+const defaultProfile: Profile = {
+  username: 'Xyz',
+  name: 'NChat User',
+  bio: '',
+  avatar: '',
 };
 
 export const useProfileStore = create<ProfileState>((set) => ({
-  username: 'Xyz',
-  bio: 'Welcome to my NChat profile 🚀',
-  avatar: null,
+  profile: defaultProfile,
+  hydrated: false,
 
-  updateProfile: (username, bio, avatar) =>
-    set({
-      username,
-      bio,
-      avatar,
+  hydrate: async () => {
+    try {
+      const raw = await AsyncStorage.getItem(KEY);
+
+      set({
+        profile: raw
+          ? { ...defaultProfile, ...JSON.parse(raw) }
+          : defaultProfile,
+        hydrated: true,
+      });
+    } catch {
+      set({ hydrated: true });
+    }
+  },
+
+  setProfile: (changes) =>
+    set((state) => {
+      const profile = {
+        ...state.profile,
+        ...changes,
+      };
+
+      AsyncStorage.setItem(KEY, JSON.stringify(profile)).catch(() => {});
+
+      return { profile };
     }),
+
+  resetProfile: () => {
+    set({ profile: defaultProfile });
+  },
+
+  resetProfile: () => {
+    set({ profile: defaultProfile });
+  },
 }));

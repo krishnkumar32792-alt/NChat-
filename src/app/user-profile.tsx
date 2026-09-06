@@ -6,7 +6,11 @@ export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const user = useUserStore((state) =>
-    state.users.find((item) => item.id === id)
+    state.users.find(
+      (item) =>
+        item.id === id ||
+        item.username.toLowerCase() === (id || '').toLowerCase()
+    )
   );
 
   const toggleFollow = useUserStore((state) => state.toggleFollow);
@@ -15,6 +19,7 @@ export default function UserProfileScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.notFound}>User not found</Text>
+
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </Pressable>
@@ -260,30 +265,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   messageText: {
-    fontWeight: '900',
+    color: '#111',
+    fontWeight: '800',
   },
   infoCard: {
     width: '100%',
-    marginTop: 30,
+    marginTop: 25,
     padding: 18,
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 16,
-    backgroundColor: '#fafafa',
+    borderRadius: 15,
+    backgroundColor: '#f7f7f7',
   },
   infoTitle: {
     fontSize: 18,
     fontWeight: '900',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 13,
+    marginTop: 10,
   },
   infoIcon: {
-    width: 30,
-    fontSize: 16,
+    width: 28,
+    fontSize: 17,
   },
   infoText: {
     color: '#444',

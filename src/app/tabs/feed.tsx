@@ -1,15 +1,150 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import {
-  Image,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { usePostStore } from '@/store/posts';
+import { Image } from 'expo-image';
+import { usePostStore, type Post } from '@/store/posts';
+
+const PostItem = memo(function PostItem({
+  post,
+  onLike,
+  onSave,
+  onComment,
+}: {
+  post: Post;
+  onLike: (id: string) => void;
+  onSave: (id: string) => void;
+  onComment: (id: string, text: string) => void;
+}) {
+  const [comment, setComment] = useState('');
+
+  const submitComment = () => {
+    const text = comment.trim();
+    if (!text) return;
+
+    onComment(post.id, text);
+    setComment('');
+  };
+
+  return (
+    <View style={styles.post}>
+      <Pressable
+        style={styles.postHeader}
+        onPress={() =>
+          router.push({
+            pathname: '/user-profile',
+            params: { id: post.username },
+          })
+        }
+      >
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {post.username.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+
+        <View style={styles.userText}>
+          <Text style={styles.username}>{post.username}</Text>
+          <Text style={styles.postTime}>NChat</Text>
+        </View>
+      </Pressable>
+
+      <Image
+        source={post.image}
+        style={styles.postImage}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={0}
+        recyclingKey={post.id}
+      />
+
+      <View style={styles.actions}>
+        <View style={styles.leftActions}>
+          <Pressable onPress={() => onLike(post.id)} hitSlop={10}>
+            <Text style={[styles.like, post.liked && styles.liked]}>
+              {post.liked ? '♥' : '♡'}
+            </Text>
+          </Pressable>
+
+          <Pressable hitSlop={10}>
+            <Text style={styles.action}>○</Text>
+          </Pressable>
+
+          <Pressable hitSlop={10}>
+            <Text style={styles.action}>↗</Text>
+          </Pressable>
+        </View>
+
+        <Pressable onPress={() => onSave(post.id)} hitSlop={10}>
+          <Text style={styles.save}>
+            {post.saved ? '🔖' : '🏷'}
+          </Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.likes}>
+        {post.likes} {post.likes === 1 ? 'like' : 'likes'}
+      </Text>
+
+      {!!post.caption && (
+        <Text style={styles.caption}>
+          <Text style={styles.captionUser}>{post.username} </Text>
+          {post.caption}
+        </Text>
+      )}
+
+      {post.comments.length > 0 && (
+        <View style={styles.comments}>
+          {post.comments.slice(-3).map((item, index) => (
+            <Text key={`${post.id}-${index}`} style={styles.comment}>
+              <Text style={styles.commentUser}>You </Text>
+              {item}
+            </Text>
+          ))}
+
+          {post.comments.length > 3 && (
+            <Text style={styles.moreComments}>
+              View all {post.comments.length} comments
+            </Text>
+          )}
+        </View>
+      )}
+
+      <View style={styles.commentBox}>
+        <View style={styles.commentAvatar}>
+          <Text style={styles.commentAvatarText}>Y</Text>
+        </View>
+
+        <TextInput
+          value={comment}
+          onChangeText={setComment}
+          placeholder="Add a comment..."
+          placeholderTextColor="#999"
+          style={styles.input}
+          returnKeyType="send"
+          onSubmitEditing={submitComment}
+        />
+
+        <Pressable onPress={submitComment}>
+          <Text
+            style={[
+              styles.postComment,
+              !comment.trim() && styles.disabledText,
+            ]}
+          >
+            Post
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+});
 
 export default function FeedScreen() {
   const posts = usePostStore((state) => state.posts);
@@ -17,7 +152,19 @@ export default function FeedScreen() {
   const toggleSave = usePostStore((state) => state.toggleSave);
   const addComment = usePostStore((state) => state.addComment);
 
-  const [commentText, setCommentText] = useState('');
+  const renderItem = useCallback(
+    ({ item }: { item: Post }) => (
+      <PostItem
+        post={item}
+        onLike={toggleLike}
+        onSave={toggleSave}
+        onComment={addComment}
+      />
+    ),
+    [toggleLike, toggleSave, addComment]
+  );
+
+  const keyExtractor = useCallback((item: Post) => item.id, []);
 
   return (
     <View style={styles.container}>
@@ -41,34 +188,38 @@ export default function FeedScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={posts}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        <View style={styles.welcome}>
-          <View>
-            <Text style={styles.welcomeTitle}>Your Feed</Text>
-            <Text style={styles.welcomeSub}>
-              See what's happening on NChat
-            </Text>
-          </View>
-
-          <Pressable
-            style={styles.createButton}
-            onPress={() => router.push('/tabs/create')}
-          >
-            <Text style={styles.createButtonText}>＋ Post</Text>
-          </Pressable>
-        </View>
-
-        {posts.length === 0 ? (
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Text style={styles.emptyEmoji}>📸</Text>
+        removeClippedSubviews
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        updateCellsBatchingPeriod={16}
+        windowSize={5}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View style={styles.welcome}>
+            <View>
+              <Text style={styles.welcomeTitle}>Your Feed</Text>
+              <Text style={styles.welcomeSub}>
+                See what's happening on NChat
+              </Text>
             </View>
 
+            <Pressable
+              style={styles.createButton}
+              onPress={() => router.push('/tabs/create')}
+            >
+              <Text style={styles.createButtonText}>＋ Post</Text>
+            </Pressable>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>📸</Text>
             <Text style={styles.emptyTitle}>No posts yet</Text>
-
             <Text style={styles.emptyText}>
               Share your first moment with the NChat community.
             </Text>
@@ -77,160 +228,13 @@ export default function FeedScreen() {
               style={styles.emptyButton}
               onPress={() => router.push('/tabs/create')}
             >
-              <Text style={styles.emptyButtonText}>Create your first post</Text>
+              <Text style={styles.emptyButtonText}>
+                Create your first post
+              </Text>
             </Pressable>
           </View>
-        ) : (
-          posts.map((post) => (
-            <View key={post.id} style={styles.post}>
-              <View style={styles.postHeader}>
-                <Pressable
-                  style={styles.userInfo}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/user-profile',
-                      params: { id: post.username },
-                    })
-                  }
-                >
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>
-                      {post.username.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-
-                  <View>
-                    <Text style={styles.username}>{post.username}</Text>
-                    <Text style={styles.postTime}>NChat post</Text>
-                  </View>
-                </Pressable>
-
-                <Pressable hitSlop={10}>
-                  <Text style={styles.more}>•••</Text>
-                </Pressable>
-              </View>
-
-              <Pressable
-                onPress={() => toggleLike(post.id)}
-                style={styles.imageContainer}
-              >
-                <Image
-                  source={{ uri: post.image }}
-                  style={styles.postImage}
-                />
-              </Pressable>
-
-              <View style={styles.actions}>
-                <View style={styles.leftActions}>
-                  <Pressable
-                    onPress={() => toggleLike(post.id)}
-                    hitSlop={8}
-                  >
-                    <Text
-                      style={[
-                        styles.action,
-                        post.liked && styles.liked,
-                      ]}
-                    >
-                      {post.liked ? '♥' : '♡'}
-                    </Text>
-                  </Pressable>
-
-                  <Pressable hitSlop={8}>
-                    <Text style={styles.action}>○</Text>
-                  </Pressable>
-
-                  <Pressable hitSlop={8}>
-                    <Text style={styles.action}>↗</Text>
-                  </Pressable>
-                </View>
-
-                <Pressable
-                  onPress={() => toggleSave(post.id)}
-                  hitSlop={8}
-                >
-                  <Text style={styles.save}>
-                    {post.saved ? '🔖' : '🏷'}
-                  </Text>
-                </Pressable>
-              </View>
-
-              <Text style={styles.likes}>
-                {post.likes} {post.likes === 1 ? 'like' : 'likes'}
-              </Text>
-
-              {post.caption ? (
-                <Text style={styles.caption}>
-                  <Text style={styles.captionUsername}>
-                    {post.username}{' '}
-                  </Text>
-                  {post.caption}
-                </Text>
-              ) : null}
-
-              {post.comments.length > 0 && (
-                <View style={styles.comments}>
-                  {post.comments.slice(-3).map((comment, index) => (
-                    <Text key={index} style={styles.comment}>
-                      <Text style={styles.commentUsername}>You </Text>
-                      {comment}
-                    </Text>
-                  ))}
-
-                  {post.comments.length > 3 && (
-                    <Text style={styles.moreComments}>
-                      View all {post.comments.length} comments
-                    </Text>
-                  )}
-                </View>
-              )}
-
-              <View style={styles.commentBox}>
-                <View style={styles.commentAvatar}>
-                  <Text style={styles.commentAvatarText}>Y</Text>
-                </View>
-
-                <TextInput
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  placeholder="Add a comment..."
-                  placeholderTextColor="#999"
-                  style={styles.input}
-                  returnKeyType="send"
-                  onSubmitEditing={() => {
-                    const text = commentText.trim();
-
-                    if (!text) return;
-
-                    addComment(post.id, text);
-                    setCommentText('');
-                  }}
-                />
-
-                <Pressable
-                  onPress={() => {
-                    const text = commentText.trim();
-
-                    if (!text) return;
-
-                    addComment(post.id, text);
-                    setCommentText('');
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.postComment,
-                      !commentText.trim() && styles.postCommentDisabled,
-                    ]}
-                  >
-                    Post
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
+        }
+      />
     </View>
   );
 }
@@ -267,52 +271,45 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f3f3f4',
   },
 
   icon: {
-    fontSize: 20,
+    fontSize: 22,
   },
 
   plus: {
-    fontSize: 27,
-    lineHeight: 29,
+    fontSize: 29,
     fontWeight: '500',
   },
 
-  scroll: {
+  list: {
     paddingBottom: 30,
   },
 
   welcome: {
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    backgroundColor: '#fff',
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
   },
 
   welcomeTitle: {
-    fontSize: 21,
+    fontSize: 25,
     fontWeight: '900',
   },
 
   welcomeSub: {
     color: '#777',
     marginTop: 3,
-    fontSize: 13,
   },
 
   createButton: {
     backgroundColor: '#111',
     paddingHorizontal: 15,
-    paddingVertical: 9,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
 
   createButtonText: {
@@ -320,83 +317,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  empty: {
-    marginHorizontal: 18,
-    marginTop: 80,
-    padding: 25,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    alignItems: 'center',
-  },
-
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#f1f1f1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  emptyEmoji: {
-    fontSize: 32,
-  },
-
-  emptyTitle: {
-    fontSize: 23,
-    fontWeight: '900',
-    marginTop: 15,
-  },
-
-  emptyText: {
-    color: '#777',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 7,
-  },
-
-  emptyButton: {
-    backgroundColor: '#111',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 11,
-    marginTop: 18,
-  },
-
-  emptyButtonText: {
-    color: '#fff',
-    fontWeight: '800',
-  },
-
   post: {
     backgroundColor: '#fff',
     marginBottom: 12,
-    paddingBottom: 4,
+    paddingBottom: 12,
   },
 
   postHeader: {
-    height: 64,
-    paddingHorizontal: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  userInfo: {
+    height: 62,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
   },
 
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#eee',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e8e8e8',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
   },
 
   avatarText: {
@@ -404,108 +344,100 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 
+  userText: {
+    marginLeft: 10,
+  },
+
   username: {
-    fontWeight: '900',
     fontSize: 15,
+    fontWeight: '800',
   },
 
   postTime: {
     color: '#888',
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
-  },
-
-  more: {
-    fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-
-  imageContainer: {
-    width: '100%',
-    backgroundColor: '#eee',
   },
 
   postImage: {
     width: '100%',
-    height: 390,
-    resizeMode: 'cover',
+    aspectRatio: 1,
+    backgroundColor: '#eee',
   },
 
   actions: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingTop: 12,
+    alignItems: 'center',
   },
 
   leftActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
+    gap: 18,
   },
 
-  action: {
+  like: {
     fontSize: 30,
     lineHeight: 32,
-    fontWeight: '500',
   },
 
   liked: {
-    fontWeight: '900',
+    color: '#e53935',
+  },
+
+  action: {
+    fontSize: 27,
   },
 
   save: {
-    fontSize: 22,
+    fontSize: 23,
   },
 
   likes: {
+    marginHorizontal: 16,
+    marginTop: 5,
     fontWeight: '800',
-    paddingHorizontal: 15,
-    paddingTop: 5,
   },
 
   caption: {
-    paddingHorizontal: 15,
-    paddingTop: 7,
+    marginHorizontal: 16,
+    marginTop: 6,
+    fontSize: 14,
     lineHeight: 20,
   },
 
-  captionUsername: {
-    fontWeight: '900',
+  captionUser: {
+    fontWeight: '800',
   },
 
   comments: {
-    paddingTop: 4,
+    marginHorizontal: 16,
+    marginTop: 8,
   },
 
   comment: {
-    paddingHorizontal: 15,
-    paddingTop: 5,
+    fontSize: 13,
     lineHeight: 19,
   },
 
-  commentUsername: {
+  commentUser: {
     fontWeight: '800',
   },
 
   moreComments: {
-    paddingHorizontal: 15,
-    paddingTop: 7,
-    color: '#888',
+    color: '#777',
+    marginTop: 3,
     fontSize: 13,
   },
 
   commentBox: {
+    marginHorizontal: 16,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 15,
-    marginTop: 12,
-    marginBottom: 8,
-    paddingVertical: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
   },
 
   commentAvatar: {
@@ -515,27 +447,60 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
   },
 
   commentAvatarText: {
-    fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '800',
   },
 
   input: {
     flex: 1,
     height: 40,
+    marginHorizontal: 8,
     fontSize: 14,
   },
 
   postComment: {
-    color: '#111',
-    fontWeight: '900',
-    paddingHorizontal: 8,
+    fontWeight: '800',
   },
 
-  postCommentDisabled: {
-    color: '#bbb',
+  disabledText: {
+    opacity: 0.35,
+  },
+
+  empty: {
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    paddingTop: 70,
+  },
+
+  emptyEmoji: {
+    fontSize: 55,
+  },
+
+  emptyTitle: {
+    fontSize: 21,
+    fontWeight: '900',
+    marginTop: 12,
+  },
+
+  emptyText: {
+    textAlign: 'center',
+    color: '#777',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+
+  emptyButton: {
+    marginTop: 20,
+    backgroundColor: '#111',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+
+  emptyButtonText: {
+    color: '#fff',
+    fontWeight: '800',
   },
 });

@@ -24,8 +24,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [
-      "./plugins/withMavenMirror",
+    "plugins": [ "./plugins/withMavenMirror",
       "expo-router",
       [
         "expo-splash-screen",
