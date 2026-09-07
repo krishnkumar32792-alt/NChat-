@@ -123,30 +123,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
-  deleteAccount: async () => {
-    const currentUsername = get().username;
-
-    if (!currentUsername) return;
-
-    const accounts = get().accounts.filter(
-      item => item.username.toLowerCase() !== currentUsername.toLowerCase()
-    );
-
-    await AsyncStorage.multiRemove([
-      SESSION_KEY,
-      '@nchat_profile',
-      '@nchat_posts',
-      '@nchat_nearby_requests',
-    ]);
-
-    await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-
-    set({
-      username: null,
-      accounts,
-    });
-  },
-
   logout: async () => {
     await AsyncStorage.removeItem(SESSION_KEY);
     set({ username: null });

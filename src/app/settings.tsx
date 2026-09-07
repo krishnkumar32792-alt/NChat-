@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../store/auth';
 import { useProfileStore } from '../store/profile';
@@ -12,11 +12,13 @@ export default function SettingsScreen() {
   const comingSoon = (name: string) =>
     Alert.alert(name, `${name} settings coming soon.`);
 
-  const showPrivacy = () =>
-    Alert.alert(
-      'Privacy Policy',
-      'NChat respects your privacy. Current app data is stored locally on your device. NChat does not show your exact location to nearby users. Nearby discovery is opt-in and connection requests require acceptance before chat.'
-    );
+  const openPrivacy = async () => {
+    await Linking.openURL('https://krishnkumar32792-alt.github.io/NChat-/public/privacy.html');
+  };
+
+  const openDeleteWeb = async () => {
+    await Linking.openURL('https://krishnkumar32792-alt.github.io/NChat-/public/delete-account.html');
+  };
 
   const confirmDelete = () => {
     Alert.alert(
@@ -73,11 +75,11 @@ export default function SettingsScreen() {
           </View>
         </Pressable>
 
-        <Pressable style={styles.item} onPress={showPrivacy}>
+        <Pressable style={styles.item} onPress={openPrivacy}>
           <Text style={styles.icon}>🔒</Text>
           <View>
             <Text style={styles.itemTitle}>Privacy Policy</Text>
-            <Text style={styles.itemText}>How NChat handles your data</Text>
+            <Text style={styles.itemText}>Read NChat's privacy policy</Text>
           </View>
         </Pressable>
 
@@ -94,6 +96,14 @@ export default function SettingsScreen() {
           <View>
             <Text style={styles.deleteTitle}>Delete Account</Text>
             <Text style={styles.itemText}>Permanently delete your account and local data</Text>
+          </View>
+        </Pressable>
+
+        <Pressable style={styles.item} onPress={openDeleteWeb}>
+          <Text style={styles.icon}>🌐</Text>
+          <View>
+            <Text style={styles.itemTitle}>Account Deletion Webpage</Text>
+            <Text style={styles.itemText}>Request account deletion if you cannot access the app</Text>
           </View>
         </Pressable>
       </ScrollView>

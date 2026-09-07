@@ -14,7 +14,6 @@ type ProfileState = {
   hydrate: () => Promise<void>;
   setProfile: (profile: Partial<Profile>) => void;
   resetProfile: () => void;
-  resetProfile: () => void;
 };
 
 const KEY = '@nchat_profile';
@@ -61,7 +60,5 @@ export const useProfileStore = create<ProfileState>((set) => ({
     set({ profile: defaultProfile });
   },
 
-  resetProfile: () => {
-    set({ profile: defaultProfile });
-  },
+
 }));

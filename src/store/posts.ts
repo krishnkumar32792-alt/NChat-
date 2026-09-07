@@ -21,7 +21,6 @@ type PostState = {
   toggleSave: (id: string) => void;
   addComment: (id: string, comment: string) => void;
   resetPosts: () => void;
-  resetPosts: () => void;
 };
 
 const KEY = '@nchat_posts';
@@ -103,8 +102,5 @@ export const usePostStore = create<PostState>((set) => ({
     set({ posts: [] });
   },
 
-  resetPosts: () => {
-    AsyncStorage.removeItem(KEY).catch(() => {});
-    set({ posts: [] });
-  },
+
 }));
