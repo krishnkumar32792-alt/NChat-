@@ -37,7 +37,7 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006"
           yes | sdkmanager --licenses || true
 
-      - name: Generate Android project
+      - name: Generate clean Android project
         run: |
           npx expo prebuild --clean --platform android --no-install
 
@@ -45,13 +45,43 @@ jobs:
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
-      - name: Build APK
+      - name: Build release APK
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Sign release APK
+        run: |
+          mkdir -p signed
+          keytool -genkeypair \
+            -v \
+            -keystore "$RUNNER_TEMP/nchat-release.keystore" \
+            -storepass android \
+            -keypass android \
+            -alias nchat \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=NChat,O=NChat,C=IN"
+
+          zipalign_path="$ANDROID_HOME/build-tools/36.0.0/zipalign"
+          apksigner_path="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+
+          "$zipalign_path" -f 4 \
+            android/app/build/outputs/apk/release/app-release.apk \
+            signed/NChat-aligned.apk
+
+          "$apksigner_path" sign \
+            --ks "$RUNNER_TEMP/nchat-release.keystore" \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out signed/NChat.apk \
+            signed/NChat-aligned.apk
+
+          "$apksigner_path" verify --verbose signed/NChat.apk
+
+      - name: Upload standalone APK
         uses: actions/upload-artifact@v4
         with:
-          name: NChat-debug-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: NChat-standalone-apk
+          path: signed/NChat.apk
           if-no-files-found: error
