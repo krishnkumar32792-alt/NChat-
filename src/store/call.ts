@@ -61,6 +61,8 @@ type CallState = {
 
 let peer: RTCPeerConnection | null = null;
 let signalChannel: ReturnType<typeof supabase.channel> | null = null;
+let remoteDescriptionReady = false;
+let pendingIceCandidates: RTCIceCandidate[] = [];
 
 const sendSignal = async (
   callId: string,
@@ -94,6 +96,9 @@ const sendSignal = async (
 };
 
 const stopPeer = () => {
+  remoteDescriptionReady = false;
+  pendingIceCandidates = [];
+
   if (peer) {
     peer.onicecandidate = null;
     peer.ontrack = null;
@@ -226,17 +231,28 @@ const listenForSignals = async (
               })
             );
 
+            remoteDescriptionReady = true;
+
+            for (const candidate of pendingIceCandidates) {
+              await peer.addIceCandidate(candidate);
+            }
+
+            pendingIceCandidates = [];
             set({ status: 'connected' });
           }
 
           if (row.type === 'ice' && data.candidate) {
-            await peer.addIceCandidate(
-              new RTCIceCandidate({
-                candidate: data.candidate,
-                sdpMid: data.sdpMid ?? undefined,
-                sdpMLineIndex: data.sdpMLineIndex ?? undefined,
-              })
-            );
+            const candidate = new RTCIceCandidate({
+              candidate: data.candidate,
+              sdpMid: data.sdpMid ?? undefined,
+              sdpMLineIndex: data.sdpMLineIndex ?? undefined,
+            });
+
+            if (remoteDescriptionReady) {
+              await peer.addIceCandidate(candidate);
+            } else {
+              pendingIceCandidates.push(candidate);
+            }
           }
 
           if (row.type === 'decline') {
@@ -421,9 +437,16 @@ export const useCallStore = create<CallState>((set, get) => ({
         new RTCSessionDescription({
           type: 'offer',
           sdp: offer.sdp ?? '',
-
         })
       );
+
+      remoteDescriptionReady = true;
+
+      for (const candidate of pendingIceCandidates) {
+        await peer.addIceCandidate(candidate);
+      }
+
+      pendingIceCandidates = [];
 
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);

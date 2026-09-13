@@ -39,9 +39,7 @@ export default function CallScreen() {
   useEffect(() => {
     if (!peerId) return;
 
-    if (incoming && params.callId) {
-      void acceptCall(params.callId, peerId, type);
-    } else if (!incoming) {
+    if (!incoming) {
       void startCall(peerId, type);
     }
   }, [peerId, type, incoming, params.callId, acceptCall, startCall]);
