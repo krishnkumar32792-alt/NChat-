@@ -11,14 +11,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useChatStore } from '@/store/chat';
+import { useChatStore, type Message } from '@/store/chat';
+import { useCallStore } from '@/store/call';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = Array.isArray(id) ? id[0] : id || '1';
 
   const [text, setText] = useState('');
-  const [replyTo, setReplyTo] = useState<{ id: string; text: string }>();
+  const [replyTo, setReplyTo] = useState<Message>();
   const [editingId, setEditingId] = useState<string>();
 
   const messages = useChatStore((state) => state.messages[userId] || []);
@@ -29,6 +30,7 @@ export default function ChatScreen() {
   const markMessageSeen = useChatStore((state) => state.markMessageSeen);
   const toggleSaveMessage = useChatStore((state) => state.toggleSaveMessage);
   const setReaction = useChatStore((state) => state.setReaction);
+  const startCall = useCallStore((state) => state.startCall);
 
   useEffect(() => {
     loadMessages(userId);
@@ -54,7 +56,7 @@ export default function ChatScreen() {
       {
         text: 'Reply',
         onPress: () => {
-          setReplyTo({ id: item.id, text: item.text });
+          setReplyTo(item);
           setEditingId(undefined);
         },
       },
@@ -112,6 +114,52 @@ export default function ChatScreen() {
           </Text>
           <Text style={styles.subtitle}>Online</Text>
         </View>
+
+        <View style={styles.callButtons}>
+          <Pressable
+            style={styles.callButton}
+            onPress={async () => {
+              const callId = await startCall(userId, 'audio');
+
+              if (callId) {
+                router.push({
+                  pathname: '/call',
+                  params: {
+                    callId,
+                    peerId: userId,
+                    type: 'audio',
+                  },
+                });
+              } else {
+                Alert.alert('Call', 'Unable to start voice call.');
+              }
+            }}
+          >
+            <Text style={styles.callIcon}>📞</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.callButton}
+            onPress={async () => {
+              const callId = await startCall(userId, 'video');
+
+              if (callId) {
+                router.push({
+                  pathname: '/call',
+                  params: {
+                    callId,
+                    peerId: userId,
+                    type: 'video',
+                  },
+                });
+              } else {
+                Alert.alert('Call', 'Unable to start video call.');
+              }
+            }}
+          >
+            <Text style={styles.callIcon}>🎥</Text>
+          </Pressable>
+        </View>
       </View>
 
       {replyTo && (
@@ -148,7 +196,7 @@ export default function ChatScreen() {
           <Pressable
             onLongPress={() => openActions(item)}
             onPress={() => {
-              if (item.sender === 'other') {
+              if (item.sender === 'them') {
                 markMessageSeen(userId, item.id);
               }
             }}
@@ -183,7 +231,7 @@ export default function ChatScreen() {
                     : styles.otherTime
                 }
               >
-                {item.time}
+                {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 {item.edited ? ' · edited' : ''}
               </Text>
 
@@ -345,6 +393,22 @@ const styles = StyleSheet.create({
   close: {
     fontSize: 25,
     paddingHorizontal: 8,
+  },
+  callButtons: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  callButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callIcon: {
+    fontSize: 19,
   },
   inputRow: {
     flexDirection: 'row',

@@ -57,7 +57,7 @@ export default function ChatListScreen() {
                 </Text>
 
                 <Text style={styles.time}>
-                  {lastMessage?.time || 'Now'}
+                  {lastMessage ? new Date(lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
                 </Text>
               </View>
 

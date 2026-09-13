@@ -1,14 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-
-type Account = {
-  username: string;
-  password: string;
-};
+import { supabase } from '@/lib/supabase';
 
 type AuthState = {
   username: string | null;
-  accounts: Account[];
   hydrated: boolean;
   hydrate: () => Promise<void>;
   login: (username: string, password: string) => Promise<boolean>;
@@ -17,48 +11,50 @@ type AuthState = {
   logout: () => Promise<void>;
 };
 
-const ACCOUNTS_KEY = '@nchat_accounts';
-const SESSION_KEY = '@nchat_session';
+const getUsername = (user: {
+  user_metadata?: { username?: string };
+  email?: string;
+}) =>
+  user.user_metadata?.username ??
+  user.email?.split('@')[0] ??
+  null;
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   username: null,
-  accounts: [],
   hydrated: false,
 
   hydrate: async () => {
-    try {
-      const [accountsRaw, session] = await Promise.all([
-        AsyncStorage.getItem(ACCOUNTS_KEY),
-        AsyncStorage.getItem(SESSION_KEY),
-      ]);
+    const { data } = await supabase.auth.getSession();
 
-      const accounts: Account[] = accountsRaw
-        ? JSON.parse(accountsRaw)
-        : [];
-
-      set({
-        accounts,
-        username: session || null,
-        hydrated: true,
-      });
-    } catch {
-      set({ hydrated: true });
-    }
+    set({
+      username: data.session?.user
+        ? getUsername(data.session.user)
+        : null,
+      hydrated: true,
+    });
   },
 
   login: async (username, password) => {
     const cleanUsername = username.trim();
 
-    const account = get().accounts.find(
-      (item) =>
-        item.username.toLowerCase() === cleanUsername.toLowerCase() &&
-        item.password === password
-    );
+    if (cleanUsername.length < 3 || !password) {
+      return false;
+    }
 
-    if (!account) return false;
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email: `${cleanUsername.toLowerCase()}@nchat.app`,
+        password,
+      });
 
-    await AsyncStorage.setItem(SESSION_KEY, account.username);
-    set({ username: account.username });
+    if (error || !data.user) {
+      console.log('LOGIN_ERROR:', error?.message);
+      return false;
+    }
+
+    set({
+      username: getUsername(data.user),
+    });
 
     return true;
   },
@@ -66,33 +62,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signup: async (username, password) => {
     const cleanUsername = username.trim();
 
-    if (cleanUsername.length < 3 || password.length < 4) {
+    if (cleanUsername.length < 3 || password.length < 6) {
       return false;
     }
 
-    const exists = get().accounts.some(
-      (item) =>
-        item.username.toLowerCase() === cleanUsername.toLowerCase()
-    );
-
-    if (exists) return false;
-
-    const account = {
-      username: cleanUsername,
+    const { data, error } = await supabase.auth.signUp({
+      email: `${cleanUsername.toLowerCase()}@nchat.app`,
       password,
-    };
+      options: {
+        data: {
+          username: cleanUsername,
+        },
+      },
+    });
 
-    const accounts = [...get().accounts, account];
-
-    await AsyncStorage.setItem(
-      ACCOUNTS_KEY,
-      JSON.stringify(accounts)
-    );
-
-    await AsyncStorage.setItem(SESSION_KEY, cleanUsername);
+    if (error || !data.user) {
+      console.log('SIGNUP_ERROR:', error?.message);
+      return false;
+    }
 
     set({
-      accounts,
       username: cleanUsername,
     });
 
@@ -100,31 +89,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   deleteAccount: async () => {
-    const currentUsername = get().username;
+    const { error } = await supabase.rpc('delete_my_account');
 
-    if (!currentUsername) return;
+    if (error) {
+      console.log('DELETE_ACCOUNT_ERROR:', error.message);
+      throw error;
+    }
 
-    const accounts = get().accounts.filter(
-      item => item.username.toLowerCase() !== currentUsername.toLowerCase()
-    );
-
-    await AsyncStorage.multiRemove([
-      SESSION_KEY,
-      '@nchat_profile',
-      '@nchat_posts',
-      '@nchat_nearby_requests',
-    ]);
-
-    await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+    await supabase.auth.signOut();
 
     set({
       username: null,
-      accounts,
     });
   },
 
   logout: async () => {
-    await AsyncStorage.removeItem(SESSION_KEY);
-    set({ username: null });
+    await supabase.auth.signOut();
+
+    set({
+      username: null,
+    });
   },
 }));
