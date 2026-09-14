@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import { useChatStore, type Message } from '@/store/chat';
-import { useCallStore } from '@/store/call';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,7 +29,6 @@ export default function ChatScreen() {
   const markMessageSeen = useChatStore((state) => state.markMessageSeen);
   const toggleSaveMessage = useChatStore((state) => state.toggleSaveMessage);
   const setReaction = useChatStore((state) => state.setReaction);
-  const startCall = useCallStore((state) => state.startCall);
 
   useEffect(() => {
     loadMessages(userId);
@@ -118,21 +116,14 @@ export default function ChatScreen() {
         <View style={styles.callButtons}>
           <Pressable
             style={styles.callButton}
-            onPress={async () => {
-              const callId = await startCall(userId, 'audio');
-
-              if (callId) {
-                router.push({
-                  pathname: '/call',
-                  params: {
-                    callId,
-                    peerId: userId,
-                    type: 'audio',
-                  },
-                });
-              } else {
-                Alert.alert('Call', 'Unable to start voice call.');
-              }
+            onPress={() => {
+              router.push({
+                pathname: '/call',
+                params: {
+                  peerId: userId,
+                  type: 'audio',
+                },
+              });
             }}
           >
             <Text style={styles.callIcon}>📞</Text>
@@ -140,21 +131,14 @@ export default function ChatScreen() {
 
           <Pressable
             style={styles.callButton}
-            onPress={async () => {
-              const callId = await startCall(userId, 'video');
-
-              if (callId) {
-                router.push({
-                  pathname: '/call',
-                  params: {
-                    callId,
-                    peerId: userId,
-                    type: 'video',
-                  },
-                });
-              } else {
-                Alert.alert('Call', 'Unable to start video call.');
-              }
+            onPress={() => {
+              router.push({
+                pathname: '/call',
+                params: {
+                  peerId: userId,
+                  type: 'video',
+                },
+              });
             }}
           >
             <Text style={styles.callIcon}>🎥</Text>

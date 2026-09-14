@@ -47,8 +47,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         password,
       });
 
-    if (error || !data.user) {
-      console.log('LOGIN_ERROR:', error?.message);
+    if (error || !data.user || !data.session) {
+      console.log('LOGIN_ERROR:', error?.message ?? 'No active session');
       return false;
     }
 
@@ -77,7 +77,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
 
     if (error || !data.user) {
-      console.log('SIGNUP_ERROR:', error?.message);
+      console.log('SIGNUP_ERROR:', error?.message ?? 'Signup failed');
+      return false;
+    }
+
+    if (!data.session) {
+      console.log('SIGNUP_ERROR: Account created but no active session.');
       return false;
     }
 

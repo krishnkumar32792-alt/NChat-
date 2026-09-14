@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '@/lib/supabase';
 
 export type User = {
   id: string;
@@ -11,45 +12,65 @@ export type User = {
   lastSeen: string;
 };
 
+type DbProfile = {
+  id: string;
+  username: string;
+  name: string | null;
+  bio: string | null;
+  avatar: string | null;
+};
+
 type UserState = {
   users: User[];
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
   toggleFollow: (id: string) => void;
   setOnline: (id: string, online: boolean) => void;
 };
 
 export const useUserStore = create<UserState>((set) => ({
-  users: [
-    {
-      id: '1',
-      username: 'alex',
-      bio: 'Hello from NChat 👋',
-      followers: 124,
-      following: 80,
-      followed: false,
-      online: true,
-      lastSeen: 'Active now',
-    },
-    {
-      id: '2',
-      username: 'rahul',
-      bio: 'Photography & travel 📸',
-      followers: 342,
-      following: 156,
-      followed: false,
-      online: true,
-      lastSeen: 'Active now',
-    },
-    {
-      id: '3',
-      username: 'riya',
-      bio: 'Just enjoying life ✨',
-      followers: 521,
-      following: 210,
-      followed: false,
-      online: true,
-      lastSeen: 'Active now',
-    },
-  ],
+  users: [],
+  hydrated: false,
+
+  hydrate: async () => {
+    try {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, name, bio, avatar')
+        .order('username', { ascending: true });
+
+      if (error) {
+        console.log('USERS_HYDRATE_ERROR:', error.message);
+        set({ hydrated: true });
+        return;
+      }
+
+      const users: User[] = ((data ?? []) as DbProfile[])
+        .filter((item) => item.id !== currentUser?.id)
+        .map((item) => ({
+          id: item.id,
+          username: item.username || 'NChat User',
+          bio: item.bio || '',
+          followers: 0,
+          following: 0,
+          followed: false,
+          online: false,
+          lastSeen: 'Offline',
+        }));
+
+      set({
+        users,
+        hydrated: true,
+      });
+    } catch (error) {
+      console.log('USERS_HYDRATE_ERROR:', error);
+      set({ hydrated: true });
+    }
+  },
 
   toggleFollow: (id) =>
     set((state) => ({
@@ -59,7 +80,7 @@ export const useUserStore = create<UserState>((set) => ({
               ...user,
               followed: !user.followed,
               followers: user.followed
-                ? user.followers - 1
+                ? Math.max(0, user.followers - 1)
                 : user.followers + 1,
             }
           : user

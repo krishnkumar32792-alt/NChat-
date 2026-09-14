@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -13,6 +13,11 @@ import { useUserStore } from '@/store/users';
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const users = useUserStore((state) => state.users);
+  const hydrate = useUserStore((state) => state.hydrate);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
   const results = useMemo(() => {
     const text = query.trim().toLowerCase();
