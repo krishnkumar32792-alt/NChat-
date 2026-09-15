@@ -20,33 +20,65 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    setError('');
+    if (loading) return;
 
-    if (!username.trim() || !email.trim() || !password) {
+    setError('');
+    setSuccess('');
+
+    const cleanUsername = username.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanUsername || !cleanEmail || !password) {
       setError('All fields are required');
       return;
     }
 
-    if (username.trim().length < 3) {
+    if (cleanUsername.length < 3) {
       setError('Username must be at least 3 characters');
       return;
     }
 
-    if (password.length < 4) {
-      setError('Password must be at least 4 characters');
+    if (!cleanEmail.includes('@')) {
+      setError('Enter a valid email address');
       return;
     }
 
-    const success = await signup(username, password);
-
-    if (!success) {
-      setError('Username already exists');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
-    router.replace('/tabs/feed');
+    setLoading(true);
+
+    try {
+      const result = await signup(
+        cleanUsername,
+        cleanEmail,
+        password
+      );
+
+      if (result === 'verify') {
+        setSuccess(
+          'Account created. Check your email and verify your account before logging in.'
+        );
+        return;
+      }
+
+      if (result !== 'success') {
+        setError(
+          'Could not create account. The email may already be registered.'
+        );
+        return;
+      }
+
+      router.replace('/tabs/feed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -113,6 +145,8 @@ export default function SignupScreen() {
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {success ? <Text style={styles.success}>{success}</Text> : null}
 
           <Pressable
             style={({ pressed }) => [
@@ -223,6 +257,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontSize: 13,
   },
+  success: {
+    color: '#16803c',
+    marginBottom: 10,
+    fontSize: 13,
+  },
   signupButton: {
     height: 52,
     borderRadius: 12,
@@ -233,6 +272,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  disabled: {
+    opacity: 0.6,
   },
   signupText: {
     color: '#fff',

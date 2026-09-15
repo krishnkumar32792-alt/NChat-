@@ -5,8 +5,12 @@ type AuthState = {
   username: string | null;
   hydrated: boolean;
   hydrate: () => Promise<void>;
-  login: (username: string, password: string) => Promise<boolean>;
-  signup: (username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (
+    username: string,
+    email: string,
+    password: string
+  ) => Promise<'success' | 'verify' | 'error'>;
   deleteAccount: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -34,21 +38,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 
-  login: async (username, password) => {
-    const cleanUsername = username.trim();
+  login: async (email, password) => {
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (cleanUsername.length < 3 || !password) {
+    if (!cleanEmail || !cleanEmail.includes('@') || !password) {
       return false;
     }
 
     const { data, error } =
       await supabase.auth.signInWithPassword({
-        email: `${cleanUsername.toLowerCase()}@nchat.app`,
+        email: cleanEmail,
         password,
       });
 
     if (error || !data.user || !data.session) {
-      console.log('LOGIN_ERROR:', error?.message ?? 'No active session');
+      console.log(
+        'LOGIN_ERROR:',
+        error?.message ?? 'No active session'
+      );
       return false;
     }
 
@@ -59,15 +66,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     return true;
   },
 
-  signup: async (username, password) => {
+  signup: async (username, email, password) => {
     const cleanUsername = username.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (cleanUsername.length < 3 || password.length < 6) {
-      return false;
+    if (
+      cleanUsername.length < 3 ||
+      !cleanEmail.includes('@') ||
+      password.length < 6
+    ) {
+      return 'error';
     }
 
     const { data, error } = await supabase.auth.signUp({
-      email: `${cleanUsername.toLowerCase()}@nchat.app`,
+      email: cleanEmail,
       password,
       options: {
         data: {
@@ -77,20 +89,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
 
     if (error || !data.user) {
-      console.log('SIGNUP_ERROR:', error?.message ?? 'Signup failed');
-      return false;
+      console.log(
+        'SIGNUP_ERROR:',
+        error?.message ?? 'Signup failed'
+      );
+      return 'error';
     }
 
     if (!data.session) {
-      console.log('SIGNUP_ERROR: Account created but no active session.');
-      return false;
+      console.log(
+        'SIGNUP_VERIFY:',
+        'Account created. Email verification required.'
+      );
+      return 'verify';
     }
 
     set({
       username: cleanUsername,
     });
 
-    return true;
+    return 'success';
   },
 
   deleteAccount: async () => {

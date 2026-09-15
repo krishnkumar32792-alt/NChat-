@@ -16,10 +16,11 @@ import { useAuthStore } from '../store/auth';
 export default function LoginScreen() {
   const { login, hydrate, hydrated, username } = useAuthStore();
 
-  const [user, setUser] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     hydrate();
@@ -32,21 +33,36 @@ export default function LoginScreen() {
   }, [hydrated, username]);
 
   const handleLogin = async () => {
+    if (loading) return;
+
     setError('');
 
-    if (!user.trim() || !password) {
-      setError('Username and password required');
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      setError('Email and password are required');
       return;
     }
 
-    const success = await login(user, password);
-
-    if (!success) {
-      setError('Invalid username or password');
+    if (!cleanEmail.includes('@')) {
+      setError('Enter a valid email address');
       return;
     }
 
-    router.replace('/tabs/feed');
+    setLoading(true);
+
+    try {
+      const success = await login(cleanEmail, password);
+
+      if (!success) {
+        setError('Invalid email or password');
+        return;
+      }
+
+      router.replace('/tabs/feed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!hydrated) {
@@ -80,12 +96,14 @@ export default function LoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Username"
+            placeholder="Email"
             placeholderTextColor="#888"
-            value={user}
-            onChangeText={setUser}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            editable={!loading}
           />
 
           <View style={styles.passwordRow}>
@@ -96,13 +114,17 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              editable={!loading}
             />
             <Pressable
               style={styles.eyeButton}
               onPress={() => setShowPassword((v) => !v)}
               hitSlop={10}
+              disabled={loading}
             >
-              <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+              <Text style={styles.eyeText}>
+                {showPassword ? '🙈' : '👁️'}
+              </Text>
             </Pressable>
           </View>
 
@@ -112,23 +134,32 @@ export default function LoginScreen() {
             style={({ pressed }) => [
               styles.loginButton,
               pressed && styles.pressed,
+              loading && styles.disabled,
             ]}
             onPress={handleLogin}
+            disabled={loading}
           >
-            <Text style={styles.loginText}>Log In</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginText}>Log In</Text>
+            )}
           </Pressable>
 
           <View style={styles.signupRow}>
             <Text style={styles.signupLabel}>New to NChat?</Text>
 
-            <Pressable onPress={() => router.push('/signup')}>
+            <Pressable
+              onPress={() => router.push('/signup')}
+              disabled={loading}
+            >
               <Text style={styles.signupLink}> Create Account</Text>
             </Pressable>
           </View>
         </View>
 
         <Text style={styles.footer}>
-          Your account stays saved on this device.
+          Your session is securely saved on this device.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -238,6 +269,9 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
+  disabled: {
+    opacity: 0.6,
+  },
   loginText: {
     color: '#fff',
     fontWeight: '800',
@@ -258,6 +292,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#888',
     fontSize: 12,
-    marginTop: 22,
+    marginTop: 18,
   },
 });
