@@ -45,7 +45,7 @@ export default function ResetPasswordScreen() {
     setMessage('Password updated successfully');
 
     setTimeout(() => {
-      router.replace('/');
+      router.replace('/tabs/feed');
     }, 1000);
   };
 
