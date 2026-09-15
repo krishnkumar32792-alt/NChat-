@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { useAuthStore } from '../store/auth';
 
 export default function LoginScreen() {
-  const { login, hydrate, hydrated, username } = useAuthStore();
+  const { login, resetPassword, hydrate, hydrated, username } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,6 +31,34 @@ export default function LoginScreen() {
       router.replace('/tabs/feed');
     }
   }, [hydrated, username]);
+
+  const handleResetPassword = async () => {
+    if (loading) return;
+
+    setError('');
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Enter your email first');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const success = await resetPassword(cleanEmail);
+
+      if (!success) {
+        setError('Could not send reset email');
+        return;
+      }
+
+      setError('Password reset link sent to your email');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (loading) return;
@@ -129,6 +157,14 @@ export default function LoginScreen() {
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            onPress={handleResetPassword}
+            disabled={loading}
+            style={styles.forgotButton}
+          >
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </Pressable>
 
           <Pressable
             style={({ pressed }) => [
@@ -257,6 +293,15 @@ const styles = StyleSheet.create({
     color: '#d00',
     marginBottom: 10,
     fontSize: 13,
+  },
+  forgotButton: {
+    alignItems: 'flex-end',
+    marginBottom: 12,
+  },
+  forgotText: {
+    color: '#208AEF',
+    fontWeight: '700',
+    fontSize: 14,
   },
   loginButton: {
     height: 52,

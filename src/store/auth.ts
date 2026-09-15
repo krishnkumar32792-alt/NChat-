@@ -6,6 +6,7 @@ type AuthState = {
   hydrated: boolean;
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<boolean>;
+  resetPassword: (email: string) => Promise<boolean>;
   signup: (
     username: string,
     email: string,
@@ -109,6 +110,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
 
     return 'success';
+  },
+
+  resetPassword: async (email) => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return false;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      cleanEmail
+    );
+
+    if (error) {
+      console.log('RESET_PASSWORD_ERROR:', error.message);
+      return false;
+    }
+
+    return true;
   },
 
   deleteAccount: async () => {
