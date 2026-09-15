@@ -1,40 +1,37 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../lib/supabase';
+
+type SignupResult = 'success' | 'verify' | 'error';
 
 type AuthState = {
-  username: string | null;
+  user: any;
+  username: string;
+  loading: boolean;
   hydrated: boolean;
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<boolean>;
+  signup: (username: string, email: string, password: string) => Promise<SignupResult>;
   resetPassword: (email: string) => Promise<boolean>;
-  signup: (
-    username: string,
-    email: string,
-    password: string
-  ) => Promise<'success' | 'verify' | 'error'>;
-  deleteAccount: () => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<boolean>;
 };
 
-const getUsername = (user: {
-  user_metadata?: { username?: string };
-  email?: string;
-}) =>
-  user.user_metadata?.username ??
-  user.email?.split('@')[0] ??
-  null;
-
 export const useAuthStore = create<AuthState>((set) => ({
-  username: null,
+  user: null,
+  username: '',
+  loading: true,
   hydrated: false,
 
   hydrate: async () => {
     const { data } = await supabase.auth.getSession();
+    const user = data.session?.user ?? null;
+    const username = (await AsyncStorage.getItem('@nchat_username')) ?? '';
 
     set({
-      username: data.session?.user
-        ? getUsername(data.session.user)
-        : null,
+      user,
+      username,
+      loading: false,
       hydrated: true,
     });
   },
@@ -42,26 +39,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password) => {
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanEmail || !cleanEmail.includes('@') || !password) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+
+    if (error || !data.user) {
+      console.log('LOGIN ERROR:', error?.message);
       return false;
     }
 
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
-
-    if (error || !data.user || !data.session) {
-      console.log(
-        'LOGIN_ERROR:',
-        error?.message ?? 'No active session'
-      );
-      return false;
-    }
+    const savedUsername =
+      (await AsyncStorage.getItem('@nchat_username')) ?? '';
 
     set({
-      username: getUsername(data.user),
+      user: data.user,
+      username: savedUsername,
     });
 
     return true;
@@ -70,14 +63,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   signup: async (username, email, password) => {
     const cleanUsername = username.trim();
     const cleanEmail = email.trim().toLowerCase();
-
-    if (
-      cleanUsername.length < 3 ||
-      !cleanEmail.includes('@') ||
-      password.length < 6
-    ) {
-      return 'error';
-    }
 
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
@@ -89,25 +74,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       },
     });
 
-    if (error || !data.user) {
-      console.log(
-        'SIGNUP_ERROR:',
-        error?.message ?? 'Signup failed'
-      );
+    if (error) {
+      console.log('SIGNUP ERROR:', error.message);
       return 'error';
     }
 
-    if (!data.session) {
-      console.log(
-        'SIGNUP_VERIFY:',
-        'Account created. Email verification required.'
-      );
-      return 'verify';
+    if (!data.user) {
+      console.log('SIGNUP ERROR: No user returned');
+      return 'error';
     }
 
+    await AsyncStorage.setItem('@nchat_username', cleanUsername);
+
     set({
+      user: data.user,
       username: cleanUsername,
     });
+
+    if (!data.session) {
+      return 'verify';
+    }
 
     return 'success';
   },
@@ -115,42 +101,44 @@ export const useAuthStore = create<AuthState>((set) => ({
   resetPassword: async (email) => {
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      return false;
-    }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      cleanEmail
-    );
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: 'nchat://reset-password',
+    });
 
     if (error) {
-      console.log('RESET_PASSWORD_ERROR:', error.message);
+      console.log('RESET PASSWORD ERROR:', error.message);
       return false;
     }
 
     return true;
   },
 
+  logout: async () => {
+    await supabase.auth.signOut();
+    await AsyncStorage.removeItem('@nchat_username');
+
+    set({
+      user: null,
+      username: '',
+    });
+  },
+
   deleteAccount: async () => {
     const { error } = await supabase.rpc('delete_my_account');
 
     if (error) {
-      console.log('DELETE_ACCOUNT_ERROR:', error.message);
-      throw error;
+      console.log('DELETE ACCOUNT ERROR:', error.message);
+      return false;
     }
 
     await supabase.auth.signOut();
+    await AsyncStorage.removeItem('@nchat_username');
 
     set({
-      username: null,
+      user: null,
+      username: '',
     });
-  },
 
-  logout: async () => {
-    await supabase.auth.signOut();
-
-    set({
-      username: null,
-    });
+    return true;
   },
 }));
