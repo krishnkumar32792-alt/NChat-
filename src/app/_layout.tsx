@@ -44,6 +44,7 @@ export default function RootLayout() {
       <Stack.Screen name="chat" />
       <Stack.Screen name="signup" />
       <Stack.Screen name="call" />
+      <Stack.Screen name="reset-password" />
     </Stack>
 
     {incomingCall && (
